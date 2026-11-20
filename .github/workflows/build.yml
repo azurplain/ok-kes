@@ -65,6 +65,13 @@ jobs:
         id: build-app
         uses: ok-oldking/pyappify-action@master #使用pyappify打包exe
 
+      - name: Package lightweight patch zip
+        run: |
+          New-Item -ItemType Directory -Force -Path patch_stage | Out-Null
+          Copy-Item -Recurse -Force ok_tasks patch_stage\ok_tasks
+          Set-Content -Path patch_stage\使用说明.txt -Value "1. 先完全关闭 ok-kes.exe`r`n2. 将 ok_tasks 文件夹解压覆盖到：ok-kes安装目录\data\apps\ok-kes\working\`r`n3. 重启 ok-kes.exe 即可生效" -Encoding UTF8
+          Compress-Archive -Path patch_stage\* -DestinationPath "pyappify_dist\ok-kes-patch-${{ github.ref_name }}.zip" -Force
+
       - name: Release
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
