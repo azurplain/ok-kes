@@ -129,6 +129,17 @@
 
 ---
 
+## 💖 赞赏支持
+
+如果本分支新增的功能对你有帮助，欢迎自愿赞赏支持（项目免费开源学习交流，非商业售卖）~感谢
+
+<p align="center">
+  <img src="docs/images/my_wechat.jpg" alt="微信赞赏码" width="300">
+  <img src="docs/images/my_alipay.jpg" alt="支付宝收款码" width="300">
+</p>
+
+---
+
 ## 💻 开发者专区
 
 ### 从源码运行 (Python)
