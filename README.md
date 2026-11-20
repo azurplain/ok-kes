@@ -129,17 +129,6 @@
 
 ---
 
-## 💖 赞赏支持
-
-如果喜欢这个工具，可以赞赏up主持续开发~感谢
-
-<p align="center">
-  <img src="docs/images/wechat_reward_code.png" alt="微信赞赏码" width="300">
-  <img src="docs/images/alipay_reward_code.png" alt="支付宝赞赏码" width="300">
-</p>
-
----
-
 ## 💻 开发者专区
 
 ### 从源码运行 (Python)
@@ -154,12 +143,6 @@ python main.py
 # 运行 Debug 版本
 python main_debug.py
 ```
-
-## 💬 加入我们
-
-- **QQ 交流群**: `1040800032` (入群答案: `烟火焚`)
-- **QQ 频道**: [点击加入](https://pd.qq.com/s/eopggnxcu)
-- **ok-kes 官网**: [https://ok-script.com/ok-kes](https://ok-script.com/ok-kes)
 
 本项目基于 [ok-script](https://github.com/ok-oldking/ok-script) 框架开发，简单易维护。欢迎有兴趣的开发者使用 [ok-script](https://github.com/ok-oldking/ok-script) 开发您自己的自动化项目。
 
