@@ -69,7 +69,7 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path patch_stage | Out-Null
           Copy-Item -Recurse -Force ok_tasks patch_stage\ok_tasks
-          Set-Content -Path patch_stage\使用说明.txt -Value "1. 先完全关闭 ok-kes.exe`r`n2. 将 ok_tasks 文件夹解压覆盖到：ok-kes安装目录\data\apps\ok-kes\working\`r`n3. 重启 ok-kes.exe 即可生效" -Encoding UTF8
+          Set-Content -Path patch_stage\使用说明.txt -Value "1. 先完全关闭 ok-kes.exe`r`n2. 先删除旧的 ok-kes安装目录\data\apps\ok-kes\working\ok_tasks 文件夹，再将压缩包里的 ok_tasks 放入 working\（勿直接合并覆盖，避免旧版残留文件报错）`r`n3. 重启 ok-kes.exe 即可生效" -Encoding UTF8
           Compress-Archive -Path patch_stage\* -DestinationPath "pyappify_dist\ok-kes-patch-${{ github.ref_name }}.zip" -Force
 
       - name: Release
