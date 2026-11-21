@@ -41,7 +41,7 @@
 
 ## 🚀 快速开始
 
-1. **下载安装包或轻量补丁**：前往 [GitHub Releases](https://github.com/azurplain/ok-kes/releases) 下载最新的增强版完整安装程序；若已安装原版 `ok-kes`（v1.4.13 ~ v1.4.16），也可直接下载体积约 800KB 的 `ok-kes-patch-*.zip` 轻量补丁包，解压覆盖 `data\apps\ok-kes\working\` 即可。
+1. **下载安装包或轻量补丁**：前往 [GitHub Releases](https://github.com/azurplain/ok-kes/releases) 下载最新的增强版完整安装程序；若已安装原版 `ok-kes`（v1.4.13 ~ v1.4.16），也可直接下载体积约 800KB 的 `ok-kes-patch-*.zip` 轻量补丁包，**先删除** `data\apps\ok-kes\working\ok_tasks` 旧文件夹，再将压缩包内的 `ok_tasks` 解压放入 `working\`（避免旧版残留文件如 `SortieModeExperimental.py` 报错）。
 2. **安装并运行**：安装程序或覆盖补丁后重启，连接游戏窗口即可开始自动化。
 
 ## 🔥 本复刻版增强与最新修复（基于 v1.4.16）
