@@ -955,14 +955,130 @@ def handle_conquer_difficulty(task: TriggerTask):
 
 # ------------------------- 卡厄思模式独有页面处理函数（续） -------------------------
 
+def _get_mask_engraving_targets(task: TriggerTask):
+    """解析面具卡牌刻印配置，支持填写1个或2个目标词条（逗号/换行分隔）。"""
+    raw = _get_config_value(task, '面具卡牌刻印', "自身攻击卡牌伤害总量提升30%")
+    if isinstance(raw, (list, tuple)):
+        items = [str(x).strip() for x in raw if str(x).strip()]
+    else:
+        items = [s.strip() for s in re.split(r'[,，;\n；]+', str(raw or "")) if s.strip()]
+    deduped = []
+    for item in items:
+        if item not in deduped:
+            deduped.append(item)
+    return deduped[:2] if deduped else ["自身攻击卡牌伤害总量提升30%"]
+
+
+def _match_mask_engraving_target(desc_text, targets):
+    """检查描述文本是否命中目标词条列表中的某一项，命中则返回该词条，否则返回 None。"""
+    if not desc_text:
+        return None
+    for kw in targets:
+        if kw and kw in desc_text:
+            return kw
+    return None
+
+
+def _handle_mask_engraving_replace_mode(task: TriggerTask, targets, new_desc_region, slot_desc_region):
+    """处理面具卡牌刻印的替换模式（已有2个槽位）：支持1个目标（双槽同刷）或2个目标（不分先后凑齐1+2）。"""
+    task.log_info("检测到替换模式（A逻辑）")
+
+    # 读取刻印1
+    task.log_info("点击刻印1")
+    _move_and_click(task, 0.399, 0.472)
+    task.sleep(0.5)
+    slot1_desc = _get_region_text(task, slot_desc_region)
+    task.log_info(f"刻印1描述: {slot1_desc}")
+    m1 = _match_mask_engraving_target(slot1_desc, targets)
+
+    # 读取刻印2
+    task.log_info("点击刻印2")
+    _move_and_click(task, 0.399, 0.610)
+    task.sleep(0.5)
+    slot2_desc = _get_region_text(task, slot_desc_region)
+    task.log_info(f"刻印2描述: {slot2_desc}")
+    m2 = _match_mask_engraving_target(slot2_desc, targets)
+
+    if len(targets) == 1:
+        only_target = targets[0]
+        if m1 and m2:
+            task.log_info("刻印1与刻印2均已命中目标词条，点击跳过")
+            _move_and_click(task, 0.747, 0.932)
+            task.sleep(1)
+            return True
+        if m1:
+            # 保留刻印1，当前已选中刻印2
+            needed = [only_target]
+            slot_label = "刻印2"
+        else:
+            # 替换刻印1，切回选中刻印1
+            _move_and_click(task, 0.399, 0.472)
+            task.sleep(0.3)
+            needed = [only_target]
+            slot_label = "刻印1"
+    else:
+        k1, k2 = targets[0], targets[1]
+        if m1 and m2 and m1 != m2:
+            task.log_info(f"刻印1({m1})与刻印2({m2})已凑齐全部2种目标词条，点击跳过")
+            _move_and_click(task, 0.747, 0.932)
+            task.sleep(1)
+            return True
+        if m1:
+            # 保留刻印1（无论刻印2是重复的m1还是废词条），当前已选中刻印2，只刷另一个词条
+            other = k2 if m1 == k1 else k1
+            needed = [other]
+            slot_label = f"刻印2(保留刻印1「{m1}」，目标「{other}」)"
+        elif m2:
+            # 保留刻印2，切回选中刻印1，只刷另一个词条
+            other = k2 if m2 == k1 else k1
+            _move_and_click(task, 0.399, 0.472)
+            task.sleep(0.3)
+            needed = [other]
+            slot_label = f"刻印1(保留刻印2「{m2}」，目标「{other}」)"
+        else:
+            # 两个槽位均未命中，切回选中刻印1，两种词条任选其一
+            _move_and_click(task, 0.399, 0.472)
+            task.sleep(0.3)
+            needed = [k1, k2]
+            slot_label = "刻印1"
+
+    new_desc = _get_region_text(task, new_desc_region)
+    task.log_info(f"新刻印描述: {new_desc}")
+    matched_new = _match_mask_engraving_target(new_desc, needed)
+    if matched_new:
+        task.log_info(f"{slot_label}新刻印命中「{matched_new}」，交给确认按钮")
+        return False
+
+    refresh_box = find_box_at_point(task, 0.916, 0.810)
+    if refresh_box:
+        match = re.search(r'(\d+)/3', refresh_box.name)
+        if match:
+            remaining = int(match.group(1))
+            task.log_info(f"{slot_label}未命中目标{needed}，剩余刷新次数: {remaining}")
+            if remaining > 0:
+                task.log_info("点击刷新")
+                _move_and_click(task, 0.916, 0.810)
+                task.sleep(1)
+                return True
+
+    task.log_info("无法刷新，点击跳过")
+    _move_and_click(task, 0.747, 0.932)
+    task.sleep(1)
+    return True
+
+
 def handle_chaos_mask_engraving(task: TriggerTask):
-    """面具卡牌刻印获取页面: 如果0.499,0.126处文本包含"面具卡牌刻印"，则为该页面。
-    如果0.921,0.931处_clean_match"确认"后，检测0.495,0.221处是否包含"替换"：
-      - 有"替换"（A逻辑）：点击刻印1，获取刻印1描述；命中配置则点击刻印2再判断，
-        未命中则检查新刻印描述或刷新/跳过。
-      - 无"替换"（原逻辑）：直接检查刻印描述，命中则return False，否则刷新或跳过。"""
+    """面具卡牌刻印获取页面:
+    支持填写1个词条（双槽均刷该词条）或2个词条（不分先后分别凑齐1+2）。"""
+    status = getattr(task, "node_status", None)
     title_box = find_box_at_point(task, 0.499, 0.126)
     if not (title_box and "面具卡牌刻印" in title_box.name):
+        if isinstance(status, dict):
+            pending = status.pop("mask_pending_engraving", None)
+            if pending:
+                acquired = status.setdefault("mask_engravings", [])
+                if pending not in acquired:
+                    acquired.append(pending)
         return False
 
     task.log_info("检测到面具卡牌刻印获取页面")
@@ -972,110 +1088,56 @@ def handle_chaos_mask_engraving(task: TriggerTask):
     if not (confirm_box and _clean_match(confirm_box.name, "确认")):
         return False
 
-    specify_text = _get_config_value(task, '面具卡牌刻印', "自身攻击卡牌伤害总量提升30%")
+    targets = _get_mask_engraving_targets(task)
     new_desc_region = (0.589, 0.601, 0.902, 0.762)
     slot_desc_region = (0.589, 0.336, 0.898, 0.487)
 
     # 检测是否处于替换模式
     replace_box = find_box_at_point(task, 0.495, 0.221)
     if replace_box and _get_game_text(task, "替换") in replace_box.name:
-        task.log_info("检测到替换模式（A逻辑）")
-
-        # ===== A逻辑：刻印1 =====
-        task.log_info("点击刻印1")
-        _move_and_click(task, 0.399, 0.472)
-        task.sleep(0.5)
-
-        slot_desc = _get_region_text(task, slot_desc_region)
-        task.log_info(f"刻印1描述: {slot_desc}")
-
-        if specify_text not in slot_desc:
-            # 刻印1未命中，检查新刻印
-            new_desc = _get_region_text(task, new_desc_region)
-            task.log_info(f"新刻印描述: {new_desc}")
-            if specify_text in new_desc:
-                task.log_info(f"新刻印命中「{specify_text}」，交给确认按钮")
-                return False
-            # 检查刷新
-            refresh_box = find_box_at_point(task, 0.916, 0.810)
-            if refresh_box:
-                match = re.search(r'(\d+)/3', refresh_box.name)
-                if match:
-                    remaining = int(match.group(1))
-                    task.log_info(f"刻印1未命中，剩余刷新次数: {remaining}")
-                    if remaining > 0:
-                        task.log_info(f"点击刷新")
-                        _move_and_click(task, 0.916, 0.810)
-                        task.sleep(1)
-                        return True
-            # 无法刷新，点击跳过
-            task.log_info("无法刷新，点击跳过")
-            _move_and_click(task, 0.747, 0.932)
-            task.sleep(1)
-            return True
-
-        # ===== 刻印1命中，继续刻印2 =====
-        task.log_info("刻印1命中，点击刻印2")
-        _move_and_click(task, 0.399, 0.610)
-        task.sleep(0.5)
-
-        slot2_desc = _get_region_text(task, slot_desc_region)
-        task.log_info(f"刻印2描述: {slot2_desc}")
-
-        if specify_text in slot2_desc:
-            # 刻印2也命中，点击跳过
-            task.log_info("刻印2也命中配置，点击跳过")
-            _move_and_click(task, 0.747, 0.932)
-            task.sleep(1)
-            return True
-
-        # 刻印2未命中，检查新刻印
-        new_desc = _get_region_text(task, new_desc_region)
-        task.log_info(f"新刻印描述: {new_desc}")
-        if specify_text in new_desc:
-            task.log_info(f"新刻印命中「{specify_text}」，交给确认按钮")
-            return False
-
-        # 检查刷新
-        refresh_box = find_box_at_point(task, 0.916, 0.810)
-        if refresh_box:
-            match = re.search(r'(\d+)/3', refresh_box.name)
-            if match:
-                remaining = int(match.group(1))
-                task.log_info(f"刻印2未命中，剩余刷新次数: {remaining}")
-                if remaining > 0:
-                    task.log_info(f"点击刷新")
-                    _move_and_click(task, 0.916, 0.810)
-                    task.sleep(1)
-                    return True
-
-        # 无法刷新，点击跳过
-        task.log_info("无法刷新，点击跳过")
-        _move_and_click(task, 0.747, 0.932)
-        task.sleep(1)
-        return True
+        return _handle_mask_engraving_replace_mode(
+            task, targets, new_desc_region, slot_desc_region
+        )
 
     # ===== 原逻辑：无替换模式 =====
     task.log_info("无替换模式，执行原逻辑")
     desc_text = _get_region_text(task, (0.583, 0.463, 0.937, 0.621))
     task.log_info(f"刻印描述: {desc_text}")
 
-    if specify_text in desc_text:
-        task.log_info(f"刻印描述包含「{specify_text}」，交给确认按钮处理")
+    acquired = status.get("mask_engravings", []) if isinstance(status, dict) else []
+    if len(targets) == 2:
+        needed = [k for k in targets if k not in acquired] or targets
+    else:
+        needed = targets
+
+    matched = _match_mask_engraving_target(desc_text, needed)
+    if matched:
+        task.log_info(f"刻印描述包含「{matched}」，交给确认按钮处理")
+        if isinstance(status, dict):
+            status["mask_pending_engraving"] = matched
         return False
 
-    # 未命中，检查可刷新次数
+    # 未命中（或已持有1号词条且当前刷新出了重复词条），检查可刷新次数
     refresh_box = find_box_at_point(task, 0.913, 0.667)
     if refresh_box:
         match = re.search(r'(\d+)/3', refresh_box.name)
         if match:
             remaining = int(match.group(1))
-            task.log_info(f"未命中指定刻印，剩余刷新次数: {remaining}")
+            task.log_info(f"未命中目标刻印{needed}，剩余刷新次数: {remaining}")
             if remaining > 0:
                 task.log_info(f"剩余刷新次数{remaining}>0，点击刷新")
                 _move_and_click(task, 0.913, 0.667)
                 task.sleep(1)
                 return True
+
+    # 若刷新次数已用完，且双词条模式下出了另一半已有的词条（总比空着/废词条强），也允许先收下
+    if len(targets) == 2:
+        fallback_match = _match_mask_engraving_target(desc_text, targets)
+        if fallback_match:
+            task.log_info(f"刷新次数耗尽，先收下目标词条「{fallback_match}」，交给确认按钮处理")
+            if isinstance(status, dict):
+                status["mask_pending_engraving"] = fallback_match
+            return False
 
     task.log_info("无可刷新次数，跳过")
     return False
