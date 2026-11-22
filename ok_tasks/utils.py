@@ -1170,16 +1170,46 @@ def _clean_match(name, target):
     return cleaned == target
 
 
+def _sort_ocr_boxes_reading_order(boxes):
+    """按阅读顺序（纵向重叠>=50%归为同一行，行内从左到右，行间从上到下）排序OCR框。"""
+    if len(boxes) <= 1:
+        return list(boxes)
+    ordered_y = sorted(boxes, key=lambda b: (b.y + b.height / 2, b.x))
+    rows = []
+    for box in ordered_y:
+        top = box.y
+        bottom = box.y + box.height
+        height = max(1, box.height)
+        placed = False
+        for row in rows:
+            row_top = sum(b.y for b in row) / len(row)
+            row_bottom = sum(b.y + b.height for b in row) / len(row)
+            row_height = max(1.0, row_bottom - row_top)
+            overlap = min(bottom, row_bottom) - max(top, row_top)
+            if overlap >= 0.5 * min(height, row_height):
+                row.append(box)
+                placed = True
+                break
+        if not placed:
+            rows.append([box])
+    rows.sort(key=lambda row: sum(b.y + b.height / 2 for b in row) / len(row))
+    result = []
+    for row in rows:
+        row.sort(key=lambda b: b.x)
+        result.extend(row)
+    return result
+
+
 def _get_region_text(task: TriggerTask, region):
-    """获取指定区域内所有OCR文本，去除空白后用"".join拼接返回。"""
+    """获取指定区域内所有OCR文本，按阅读顺序排序后用"".join拼接返回。"""
     x1, y1, x2, y2 = region
-    texts = [
-        b.name.strip() for b in task.all_texts
+    boxes = [
+        b for b in task.all_texts
         if x1 <= (b.x + b.width / 2) / task.width <= x2
         and y1 <= (b.y + b.height / 2) / task.height <= y2
         and b.name.strip()
     ]
-    return "".join(texts)
+    return "".join(b.name.strip() for b in _sort_ocr_boxes_reading_order(boxes))
 
 
 def _region_text_debug_info(task: TriggerTask, region):
@@ -2603,7 +2633,7 @@ def _extract_engraving_description(task: TriggerTask, description_region, icon_c
         and max(y1, min_y) <= (b.y + b.height / 2) / task.height <= y2
         and b.name.strip()
     ]
-    boxes.sort(key=lambda b: (round((b.y + b.height / 2) / task.height, 2), b.x))
+    boxes = _sort_ocr_boxes_reading_order(boxes)
     text = "".join(b.name.strip() for b in boxes)
     return text if text else _get_region_text(task, description_region)
 
