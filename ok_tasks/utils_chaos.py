@@ -239,7 +239,7 @@ def handle_memory_card_select(task: TriggerTask):
     task.log_info("检测到记忆卡牌选择页面，等待1秒让卡面与刷新按钮稳定")
     task.sleep(1)
     task.all_texts = _simplify_texts(task.ocr())
-    specified_memory = _get_config_value(task, "指定记忆卡牌", "")
+    specified_memory = str(_get_config_value(task, "指定记忆卡牌", "") or "").strip()
 
     cards = []
     actions = []
@@ -256,6 +256,28 @@ def handle_memory_card_select(task: TriggerTask):
                 task.node_status["memory_escape_pending"] = False
             task._memory_escape_tried_esc = False
             _move_and_click(task, *target_click_positions[0])
+            task.sleep(1)
+            return True
+
+        if not specified_memory:
+            if cards:
+                card = random.choice(cards)
+                task.log_info(f"指定记忆卡牌为空，随机选择记忆卡牌「{card['name']}」")
+                if hasattr(task, "node_status") and isinstance(task.node_status, dict):
+                    task.node_status["memory_escape_pending"] = False
+                task._memory_escape_tried_esc = False
+                _move_and_click(task, card["x"], card["y"])
+                task.sleep(1)
+                return True
+            if attempt < 2:
+                task.sleep(1)
+                task.all_texts = _simplify_texts(task.ocr())
+                continue
+            task.log_info("指定记忆卡牌为空且未识别到卡面，默认选择中间记忆卡牌")
+            if hasattr(task, "node_status") and isinstance(task.node_status, dict):
+                task.node_status["memory_escape_pending"] = False
+            task._memory_escape_tried_esc = False
+            _move_and_click(task, 0.500, 0.300)
             task.sleep(1)
             return True
 
