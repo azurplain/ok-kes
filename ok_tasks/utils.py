@@ -2318,14 +2318,41 @@ def _equipment_priority(task: TriggerTask, slot):
     return list(priority) if isinstance(priority, (list, tuple)) else []
 
 
+_EQUIPMENT_NAME_SYNONYM_GROUPS = (
+    ("混沌之识", "混沌指控"),
+    ("乱世之触", "混沌触手"),
+)
+
+
+def _equipment_name_variants(name):
+    """展开已知简繁同义装备名，使装备优先级匹配同时兼容简/繁客户端。"""
+    normalized = _normalize_text(str(name or "")).strip()
+    if not normalized:
+        return []
+    variants = [normalized]
+    for group in _EQUIPMENT_NAME_SYNONYM_GROUPS:
+        for alias in group:
+            if alias in normalized:
+                for other in group:
+                    if other != alias:
+                        variants.append(normalized.replace(alias, other))
+    return variants
+
+
 def _match_equipment_name(ocr_name, priority):
-    """用双向包含匹配装备名，返回配置中的标准名称及优先级下标。"""
-    if not ocr_name:
+    """用双向包含匹配装备名（兼容简繁同义装备名），返回配置中的标准名称及优先级下标。"""
+    ocr_variants = _equipment_name_variants(ocr_name)
+    if not ocr_variants:
         return None, None
     for index, config_name in enumerate(priority):
         if not config_name:
             continue
-        if ocr_name in config_name or config_name in ocr_name:
+        cfg_variants = _equipment_name_variants(config_name)
+        if any(
+            ov in cv or cv in ov
+            for ov in ocr_variants
+            for cv in cfg_variants
+        ):
             return config_name, index
     return None, None
 
