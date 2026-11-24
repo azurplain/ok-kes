@@ -1553,11 +1553,10 @@ def handle_precision_memory_process(task: TriggerTask):
     if isinstance(status, dict):
         status["precision_memory_visited"] = True
 
-    enable_process = _get_config_value(task, "加工记忆", False) is True
     keywords = _get_memory_process_keywords(task)
     already_processed = isinstance(status, dict) and status.get("memory_process_done", False)
 
-    if enable_process and keywords and not already_processed:
+    if keywords and not already_processed:
         matched_kw = None
         for card in cards:
             matched_kw = _card_matches_memory_keywords(card, keywords)

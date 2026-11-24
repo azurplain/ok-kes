@@ -2321,6 +2321,9 @@ def _equipment_priority(task: TriggerTask, slot):
 _EQUIPMENT_NAME_SYNONYM_GROUPS = (
     ("混沌之识", "混沌指控"),
     ("乱世之触", "混沌触手"),
+    ("翠绿之昼", "深绿白昼"),
+    ("翠绿之夜", "深绿黑夜"),
+    ("翠绿的枷锁", "深绿桎梏"),
 )
 
 
@@ -2680,6 +2683,12 @@ _ENGRAVING_EXEMPT_MYTHIC_NAMES = (
     "混沌指控",
     "乱世之触",
     "混沌触手",
+    "翠绿之昼",
+    "深绿白昼",
+    "翠绿之夜",
+    "深绿黑夜",
+    "翠绿的枷锁",
+    "深绿桎梏",
 )
 
 
@@ -4288,7 +4297,7 @@ def _wait_for_rest_confirm(task: TriggerTask):
 
 
 def handle_rest(task: TriggerTask):
-    """休息界面: 根据血量、信用点和冥想状态选择休息或冥想。"""
+    """休息界面: 优先训练开启时只执行训练；否则根据血量、信用点和冥想状态选择休息或冥想。"""
     special_flash = task.find_one(
         feature_name=["special_flash_luosi", "special_flash_luosi2", "special_flash_luosi3"],
         box=task.box_of_screen(0.219, 0.208, 0.786, 0.814),
@@ -4308,13 +4317,45 @@ def handle_rest(task: TriggerTask):
         hasattr(task, 'node_status')
         and task.node_status.get('flash_or_rest', False)
     )
-    can_rest = bool(rest_feature and "免费" in free_text and flash_or_rest)
-
     meditation_region = (0.671, 0.433, 0.945, 0.801)
     meditate_feature = task.find_one(
         feature_name="meditate",
         box=task.box_of_screen(*meditation_region),
     )
+    shop_box = find_box_at_point(task, 0.360, 0.138)
+    is_rest_page = bool(
+        rest_feature
+        or meditate_feature
+        or (shop_box and "德朗商店" in shop_box.name)
+    )
+
+    if _get_config_value(task, "优先训练", False) is True:
+        if flash_or_rest and is_rest_page:
+            train_region = (0.70, 0.16, 0.97, 0.46)
+            train_box = next(
+                (
+                    text_box for text_box in task.all_texts
+                    if train_region[0] <= (text_box.x + text_box.width / 2) / task.width <= train_region[2]
+                    and train_region[1] <= (text_box.y + text_box.height / 2) / task.height <= train_region[3]
+                    and "训练" in text_box.name
+                ),
+                None,
+            )
+            if train_box:
+                task.log_info("优先训练已开启，检测到训练按钮，点击训练")
+                task.click_box(train_box)
+                if not _wait_for_rest_confirm(task):
+                    return True
+                task.node_status['flash_or_rest'] = False
+                return True
+        if shop_box and "德朗商店" in shop_box.name and hasattr(task, 'node_status') and task.node_status.get('shop', False):
+            task.log_info("检测到德朗商店，且 node_status['shop']=True，进入商店")
+            task.click_box(shop_box)
+            task.sleep(2)
+            return True
+        return False
+
+    can_rest = bool(rest_feature and "免费" in free_text and flash_or_rest)
     meditation_cost_boxes = [
         text_box for text_box in task.all_texts
         if re.fullmatch(r"\d+", text_box.name.strip())

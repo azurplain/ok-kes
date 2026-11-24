@@ -66,8 +66,8 @@ class ChaosMode(TriggerTask):
         self.default_config['刻印优先级'] = []
         self.default_config['卡牌奖励优先级'] = ["梦之边境"]
         self.default_config['指定记忆卡牌'] = ""
-        self.default_config['加工记忆'] = False
         self.default_config['加工记忆词条'] = ""
+        self.default_config['优先训练'] = False
         self.default_config['首层刷特定闪光'] = False
         self.default_config['刷空档'] = False
         self.default_config['优先使用金币治疗'] = True
@@ -140,11 +140,13 @@ class ChaosMode(TriggerTask):
         self.config_description['商店刷新信用点阈值'] = (
             "德朗商店免费刷新次数用完后，仅当信用点大于该值且足够支付刷新价格时才付费刷新。"
         )
-        self.config_description['加工记忆'] = (
-            "开启后，在记忆雕琢界面若当前记忆卡牌未命中“加工记忆词条”，会先点击左侧“记忆加工”转换词条，再点击右侧“记忆雕琢”强化。"
-        )
         self.config_description['加工记忆词条'] = (
-            "开启“加工记忆”时生效：填写目标记忆卡牌词条关键字（多个候选词条可用逗号分隔），无需完整填写，字序与游戏原文一致即可。"
+            "填写目标记忆卡牌词条关键字（多个候选词条可用逗号分隔），留空不加工；"
+            "在记忆雕琢界面若未命中会先点击左侧“记忆加工”转换词条，再点击右侧“记忆雕琢”强化。"
+        )
+        self.config_description['优先训练'] = (
+            "开启后，在休息点不再冥想和休息，优先点击右上角“训练”获取中立卡牌；"
+            "未命中“卡牌奖励优先级”时跳过并确认返回，随后继续执行商店等后续流程。"
         )
         self.config_description['刻印刷取'] = (
             "开启后，在事件/战斗/商店获得装备时自动识别光明/黑暗刻印并按“刻印优先级”刷取与替换；开启后词条优先级高于装备优先级。"
