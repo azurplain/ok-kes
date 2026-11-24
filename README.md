@@ -19,7 +19,8 @@
 <div align="center">
   
 ![平台](https://img.shields.io/badge/platform-Windows-blue)
-[![GitHub release](https://img.shields.io/github/v/release/baoxin1100/ok-kes)](https://github.com/baoxin1100/ok-kes/releases)
+[![GitHub release](https://img.shields.io/github/v/release/azurplain/ok-kes)](https://github.com/azurplain/ok-kes/releases)
+[![Upstream](https://img.shields.io/badge/upstream-baoxin1100%2Fok--kes%20v1.4.17-informational)](https://github.com/baoxin1100/ok-kes)
 
 </div>
 
@@ -39,8 +40,8 @@
 
 ## 🚀 快速开始
 
-1. **下载安装包**：前往 [GitHub Releases](https://github.com/baoxin1100/ok-kes/releases) 下载最新的安装程序。
-2. **安装并运行**：安装程序，启动后会自动更新到最新版本；启动游戏并连接游戏窗口，然后选择需要的功能运行。
+1. **下载安装包**：前往 [GitHub Releases](https://github.com/azurplain/ok-kes/releases) 下载本分支最新的安装程序或轻量补丁包 `ok-kes-patch-*.zip`（基于上游 [baoxin1100/ok-kes](https://github.com/baoxin1100/ok-kes) `v1.4.17`）。
+2. **安装并运行**：安装程序后启动并连接游戏窗口，选择需要的功能运行；若使用轻量补丁包，请先关闭 `ok-kes.exe`，删除安装目录 `data\apps\ok-kes\working\ok_tasks` 后再解压放入新版 `ok_tasks` 文件夹。
 
 ## ✨ 主要功能
 
@@ -63,6 +64,13 @@
 - 🏪 商店处理：自动进入德朗商店
 - 🌀 零式系统支持：自动处理法典搜索
 - 更多功能持续开发中...
+
+### 本分支定制增强（基于 v1.4.17，当前版本 v1.4.17-engraving.7）
+- 🏷️ **装备刻印刷取与三槽位独立追踪**：开启「刻印刷取」后按「刻印优先级」自动刷取光明/黑暗刻印，支持最终 Boss 前已命中词条数量保底检测与未命中直接提炼
+- 🛡️ **特例神话/事件装备豁免与简繁互通**：支持指定特例神话装备及「翠绿/深绿」系列事件装备豁免刻印覆盖，并内置简繁同义名映射
+- 🏋️ **休息点优先训练**：新增「优先训练」开关，在休息点优先点击右上角「训练」获取中立卡牌（如刷「梦之边境」），未命中「卡牌奖励优先级」时自动跳过确认并继续商店等后续流程
+- 🎴 **面具卡牌刻印与记忆加工增强**：支持「面具卡牌刻印」填写 1 个或 2 个目标词条（逗号分隔）；「加工记忆词条」填写即自动执行精密记忆加工（留空不加工）；「指定记忆卡牌」留空时正常选卡继续第 2 层
+- 🔍 **OCR 与商店/存档稳定性修复**：优化全局多行区域 OCR 文本按行阅读顺序拼接、修复商店特价价格识别与高 TB 存档强制删档标记保留、收窄中央确认弹窗识别范围防止误触
 
 ### 半自动剧情模式
 - 💬 自动对话：跳过剧情对话
