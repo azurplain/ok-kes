@@ -2678,6 +2678,60 @@ def _count_matched_engravings(task: TriggerTask, equipment=None):
     return sum(1 for eng in engravings if isinstance(eng, dict) and bool(eng.get("type")))
 
 
+def _get_specified_equipment_targets(task: TriggerTask):
+    """读取“指定装备”配置关键字列表，留空返回空列表。"""
+    raw = str(_get_config_value(task, "指定装备", "") or "").strip()
+    if not raw:
+        return []
+    return [item.strip() for item in re.split(r"[,，\n]+", raw) if item.strip()]
+
+
+def _has_specified_equipment(task: TriggerTask, targets=None):
+    """判断目标主战员当前已装备中是否包含任意指定装备（兼容简繁同义名）。"""
+    if targets is None:
+        targets = _get_specified_equipment_targets(task)
+    if not targets:
+        return True
+    names = _equipment_state(task).get("names", ["", "", ""])
+    return any(
+        name and _match_equipment_name(name, targets)[0] is not None
+        for name in names
+    )
+
+
+def _check_graduation_before_final_boss(task: TriggerTask):
+    """检查“不毕业不换图”条件：3个位置装备均须为各自优先级第1位；开启刻印刷取时还要求3个槽位刻印均为刻印优先级第1位。"""
+    equipment = _equipment_state(task)
+    names = equipment.get("names", ["", "", ""])
+    for slot in range(3):
+        priority = _equipment_priority(task, slot)
+        top_equip = next((str(item).strip() for item in priority if str(item).strip()), "")
+        if not top_equip:
+            return False, f"未配置装备{slot + 1}号位优先级第1位"
+        current_name = str(names[slot] or "").strip()
+        if not current_name or _match_equipment_name(current_name, [top_equip])[0] is None:
+            return False, (
+                f"装备{slot + 1}号位未毕业（当前={current_name or '空'}，要求={top_equip}）"
+            )
+
+    if _is_engraving_farm_enabled(task):
+        engraving_priority = _engraving_priority(task)
+        if engraving_priority:
+            top_engraving = engraving_priority[0]
+            engravings = equipment.get("engravings", [])
+            for slot in range(3):
+                eng = engravings[slot] if slot < len(engravings) and isinstance(engravings[slot], dict) else {}
+                rank = eng.get("rank")
+                if rank is None and eng.get("text"):
+                    _, rank = _match_engraving_text(eng.get("text", ""), engraving_priority)
+                if rank != 0:
+                    current_eng_text = eng.get("text") or "无"
+                    return False, (
+                        f"装备{slot + 1}号位刻印未毕业（当前={current_eng_text}，要求第1位={top_engraving}）"
+                    )
+    return True, ""
+
+
 _ENGRAVING_EXEMPT_MYTHIC_NAMES = (
     "混沌之识",
     "混沌指控",
@@ -4015,6 +4069,20 @@ def handle_route_selection(task: TriggerTask):
             _move_and_click(task, 0.959, 0.053)
             task.sleep(1.5)
             return True
+        if (
+            task.node_status.get('pass_final_boss_count', 0) == 0
+            and task.node_status.get('node_type') == "结算"
+        ):
+            specified_equips = _get_specified_equipment_targets(task)
+            if specified_equips and not _has_specified_equipment(task, specified_equips):
+                current_equips = _equipment_state(task).get("names", ["", "", ""])
+                task.log_info(
+                    f"第1层检查点（结算节点）完成后未获得指定装备 {specified_equips}"
+                    f"（当前装备={current_equips}），点击右上角菜单按钮执行重开"
+                )
+                _move_and_click(task, 0.959, 0.053)
+                task.sleep(1.5)
+                return True
         task.node_status['enter_new_node'] = True
 
     task.log_info("检测到路线选择页面，按优先级依次点击节点")
@@ -4050,22 +4118,33 @@ def handle_route_selection(task: TriggerTask):
     # 找不到任何普通节点类型特征时，当前路线节点即为boss。
     if not nodes:
         current_layer = task.node_status.get('pass_final_boss_count', 0) if hasattr(task, 'node_status') else 0
-        if current_layer >= 1 and _is_engraving_farm_enabled(task):
-            try:
-                min_engravings = int(_get_config_value(task, '最终战前已命中词条至少为多少', 0))
-            except (TypeError, ValueError):
-                min_engravings = 0
-            if min_engravings > 0:
-                matched_count = _count_matched_engravings(task)
-                if matched_count < min_engravings:
+        if current_layer >= 1:
+            if _get_config_value(task, '不毕业不换图', False) is True:
+                graduated, reason = _check_graduation_before_final_boss(task)
+                if not graduated:
                     task._force_delete_archive_no_engraving = True
                     task.log_info(
-                        f"第2层最终Boss前（最后一个休息点后）已命中刻印词条数={matched_count} < 要求{min_engravings}，"
-                        "退出并删档重来"
+                        f"第2层最终Boss前（最后一个休息点后）触发「不毕业不换图」：{reason}，退出并强制删档重来"
                     )
                     _move_and_click(task, 0.959, 0.053)
                     task.sleep(1.5)
                     return True
+            elif _is_engraving_farm_enabled(task):
+                try:
+                    min_engravings = int(_get_config_value(task, '最终战前已命中词条至少为多少', 0))
+                except (TypeError, ValueError):
+                    min_engravings = 0
+                if min_engravings > 0:
+                    matched_count = _count_matched_engravings(task)
+                    if matched_count < min_engravings:
+                        task._force_delete_archive_no_engraving = True
+                        task.log_info(
+                            f"第2层最终Boss前（最后一个休息点后）已命中刻印词条数={matched_count} < 要求{min_engravings}，"
+                            "退出并删档重来"
+                        )
+                        _move_and_click(task, 0.959, 0.053)
+                        task.sleep(1.5)
+                        return True
         task.log_info("检测到最终boss节点，点击进入")
         if hasattr(task, 'node_status'):
             task.node_status['reach_final_boss'] = True

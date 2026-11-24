@@ -60,6 +60,8 @@ class ChaosMode(TriggerTask):
         self.default_config['装备1号位优先级'] = ["蚀化臂铠"]
         self.default_config['装备2号位优先级'] = ["拷问工具箱"]
         self.default_config['装备3号位优先级'] = ["异象石碑"]
+        self.default_config['指定装备'] = ""
+        self.default_config['不毕业不换图'] = False
         self.default_config['刻印刷取'] = False
         self.default_config['首层未刷到刻印重开'] = False
         self.default_config['最终战前已命中词条至少为多少'] = 0
@@ -147,6 +149,13 @@ class ChaosMode(TriggerTask):
         self.config_description['优先训练'] = (
             "开启后，在休息点不再冥想和休息，优先点击右上角“训练”获取中立卡牌；"
             "未命中“卡牌奖励优先级”时跳过并确认返回，随后继续执行商店等后续流程。"
+        )
+        self.config_description['指定装备'] = (
+            "填写目标装备名称（多个可用逗号分隔），留空不生效；填写后在第1层中继检查点（结算节点）全部操作完成后若仍未获得任意指定装备，直接退出重开。"
+        )
+        self.config_description['不毕业不换图'] = (
+            "开启后，在第2层最后一个休息点全部操作完成后（最终Boss前），若刷存档主战员3个位置的装备未全部满足各自装备优先级第1位，"
+            "则退出并强制删档重来；若同时开启“刻印刷取”，还会额外要求3个槽位的刻印全部为“刻印优先级”第1位（优先级高于“最终战前已命中词条至少为多少”）。"
         )
         self.config_description['刻印刷取'] = (
             "开启后，在事件/战斗/商店获得装备时自动识别光明/黑暗刻印并按“刻印优先级”刷取与替换；开启后词条优先级高于装备优先级。"
