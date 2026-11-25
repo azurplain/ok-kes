@@ -6,7 +6,7 @@ import sys
 import numpy as np
 from ok import ConfigOption
 
-version = "v1.4.17-engraving.9"
+version = "v1.4.17-engraving.10"
 #不需要修改version, Github Action打包会自动修改
 
 OCR_BACKEND_AUTO = "自动"

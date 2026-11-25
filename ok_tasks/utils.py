@@ -2140,12 +2140,12 @@ def _prioritize_target_member_click(task: TriggerTask, click_positions, search_r
     target_member = task.find_one(
         feature_name="target_member_large",
         box=task.box_of_screen(*search_region),
-        threshold=0.55,
+        threshold=0.50,
     )
     if not target_member:
         task.log_info(
             "刷存档主战员头像匹配失败："
-            f"在区域{search_region}内未找到target_member_large（阈值=0.55），"
+            f"在区域{search_region}内未找到target_member_large（阈值=0.50），"
             "保持原主战员点击顺序"
         )
         return click_positions
