@@ -1420,7 +1420,7 @@ def select_card(task: TriggerTask, card_names, count=1, action=""):
         """刷空档时优先移除目标主战员同一排的卡牌。"""
         if not prefer_target_member_row or selected >= count:
             return False
-        if not task.feature_exists("target_member_in_select_card"):
+        if not _has_valid_target_member_feature(task, "target_member_in_select_card"):
             return False
         target_member = task.find_one(
             feature_name="target_member_in_select_card",
@@ -2079,26 +2079,73 @@ def handle_destiny_choice(task: TriggerTask):
     return False
 
 
+_TARGET_MEMBER_FEATURE_NAMES = (
+    "target_member",
+    "target_member_small",
+    "target_member_in_select_card",
+    "target_member_tiny",
+    "target_member_in_mask_card",
+    "target_member_large",
+)
+
+
+def _clear_target_member_features(task: TriggerTask):
+    """清除内存与磁盘上缓存的刷存档主战员头像特征，防止切换队伍或主战员后误用旧头像。"""
+    executor = getattr(task, "executor", None)
+    feature_set = getattr(executor, "feature_set", None) if executor is not None else None
+    if feature_set is not None:
+        lock = getattr(feature_set, "lock", None)
+        if lock is not None:
+            with lock:
+                for name in _TARGET_MEMBER_FEATURE_NAMES:
+                    feature_set.feature_dict.pop(name, None)
+                    feature_set.box_dict.pop(name, None)
+        else:
+            for name in _TARGET_MEMBER_FEATURE_NAMES:
+                feature_set.feature_dict.pop(name, None)
+                feature_set.box_dict.pop(name, None)
+
+    try:
+        from ok.util.config import Config
+        from ok.util.file import get_relative_path
+
+        config_folder = get_relative_path(Config.config_folder)
+        for name in _TARGET_MEMBER_FEATURE_NAMES:
+            feature_path = os.path.join(config_folder, f"{name}.png")
+            if os.path.exists(feature_path):
+                os.remove(feature_path)
+    except Exception:
+        pass
+
+
+def _has_valid_target_member_feature(task: TriggerTask, feature_name: str) -> bool:
+    """判断当前局目标主战员头像特征是否已刷新且有效。"""
+    if "刷存档主战员" in getattr(task, "default_config", {}) and hasattr(task, "node_status"):
+        if not task.node_status.get("save_target_member", False):
+            return False
+    return bool(task.feature_exists(feature_name))
+
+
 def _prioritize_target_member_click(task: TriggerTask, click_positions, search_region):
     """匹配目标成员头像，并将距离最近的候选点击位置移到最前。"""
     if not click_positions:
         task.log_info("刷存档主战员匹配失败：没有可绑定的候选点击位置")
         return click_positions
-    if not task.feature_exists("target_member_large"):
+    if not _has_valid_target_member_feature(task, "target_member_large"):
         task.log_info(
-            "刷存档主战员匹配跳过：尚未保存target_member_large头像特征，"
+            "刷存档主战员匹配跳过：尚未保存当前局target_member_large头像特征，"
             "保持原主战员点击顺序"
         )
         return click_positions
     target_member = task.find_one(
         feature_name="target_member_large",
         box=task.box_of_screen(*search_region),
-        threshold=0.35,
+        threshold=0.55,
     )
     if not target_member:
         task.log_info(
             "刷存档主战员头像匹配失败："
-            f"在区域{search_region}内未找到target_member_large（阈值=0.35），"
+            f"在区域{search_region}内未找到target_member_large（阈值=0.55），"
             "保持原主战员点击顺序"
         )
         return click_positions
@@ -2920,12 +2967,12 @@ def _find_target_member_index(
     feature_name="target_member_small",
 ):
     """在指定区域匹配目标成员头像，并返回距离最近的等级文本索引。"""
-    if not lv_texts or not task.feature_exists(feature_name):
+    if not lv_texts or not _has_valid_target_member_feature(task, feature_name):
         return None
     target_member_box = task.find_one(
         feature_name=feature_name,
         box=task.box_of_screen(*region),
-        threshold=0.4,
+        threshold=0.55,
     )
     if not target_member_box:
         return None
@@ -3394,8 +3441,8 @@ def _scroll_to_target_member_for_card_removal(task: TriggerTask):
     """移除卡牌前滚动成员列表，直到目标成员出现或到达底部。"""
     feature_name = "target_member_in_select_card"
     page = "移除卡牌目标主战员查找"
-    if not task.feature_exists(feature_name):
-        task.log_info(f"{page}: 尚未保存{feature_name}特征，跳过查找")
+    if not _has_valid_target_member_feature(task, feature_name):
+        task.log_info(f"{page}: 尚未保存当前局{feature_name}特征，跳过查找")
         return
 
     search_region = (0.079, 0.092, 0.209, 0.675)
@@ -3417,7 +3464,7 @@ def _scroll_to_target_member_for_card_removal(task: TriggerTask):
         target_member = task.find_one(
             feature_name=feature_name,
             box=search_box,
-            threshold=0.5,
+            threshold=0.55,
         )
         if target_member:
             task.log_info(
@@ -5049,6 +5096,7 @@ def reset_all_status(task: TriggerTask):
     if getattr(task, 'node_status', None) is not None:
         task.node_status = _initial_node_status()
     task.member_status = _initial_member_status()
+    _clear_target_member_features(task)
     _reset_meditation_state(task)
     task._pending_removed_card_count = 0
     task._season_observe_clicked = False

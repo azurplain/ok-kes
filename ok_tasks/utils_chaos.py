@@ -28,6 +28,8 @@ from utils import (
     _match_engraving_template,
     _extract_engraving_description,
     _engraving_priority,
+    _clear_target_member_features,
+    _has_valid_target_member_feature,
     _match_engraving_text,
     _equipment_state,
 )
@@ -724,7 +726,8 @@ def handle_archive_target_member(task: TriggerTask):
 
     target_name = _get_config_value(task, "刷存档主战员", "海德玛丽")
     if not target_name:
-        task.log_info("未配置刷存档主战员，关闭信息统计页面")
+        _clear_target_member_features(task)
+        task.log_info("未配置刷存档主战员，已清除旧头像特征并关闭信息统计页面")
         _move_and_click(task, 0.960, 0.054)
         task.sleep(1)
         return True
@@ -742,6 +745,7 @@ def handle_archive_target_member(task: TriggerTask):
         member_names.append(name_box.name.strip() if name_box else "")
     task.log_info(f"信息统计页面主战员：{member_names}")
 
+    _clear_target_member_features(task)
     for index, member_name in enumerate(member_names):
         if member_name and (target_name in member_name or member_name in target_name):
             if _save_runtime_feature(task, "target_member", member_regions[index]):
@@ -1236,7 +1240,7 @@ def handle_mask_card(task: TriggerTask):
                 feature_name="target_member_in_mask_card",
                 box=target_region,
                 threshold=0.6,
-            ) if task.feature_exists("target_member_in_mask_card") else None
+            ) if _has_valid_target_member_feature(task, "target_member_in_mask_card") else None
             if target_member:
                 task.node_status["target_mask_card_position"] = index
                 mask_position = index
